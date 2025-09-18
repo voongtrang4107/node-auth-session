@@ -1,30 +1,34 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const session = require('express-session');
-const dotenv = require('dotenv');
-const morgan = require('morgan');
+import express from "express";
+import session from "express-session";
+import MongoStore from "connect-mongo";
+import mongoose from "mongoose";
+import morgan from "morgan";
+import cors from "cors";
+import dotenv from "dotenv";
+import authRoutes from "./routes/auth.js";
+
 dotenv.config();
+
+await mongoose.connect("mongodb://localhost:27017/session_demo");
 
 const app = express();
 
-// Kết nối MongoDB
-mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('MongoDB connected'))
-    .catch(err => console.error(err));
-
-// Middleware
+app.use(cors({ origin: true, credentials: true }));
+app.use(morgan("dev"));
 app.use(express.json());
-app.use(morgan('dev'));
+
 app.use(session({
-    secret: process.env.SESSION_SECRET,
+    name: "sid",
+    secret: "supersecret",
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: false,
+    store: MongoStore.create({
+        mongoUrl: "mongodb://localhost:27017/session_demo",
+        collectionName: "sessions"
+    }),
+    cookie: { httpOnly: true, maxAge: 1000 * 60 * 60 * 24 }
 }));
 
-// Routes
-const authRoutes = require('./routes/authRoutes');
-app.use('/auth', authRoutes);
+app.use("/api/auth", authRoutes);
 
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+app.listen(3000, () => console.log("Server at http://localhost:3000"));
